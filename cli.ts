@@ -261,9 +261,7 @@ async function initializeProject(directory: string): Promise<string> {
           await execAsync("npm init -y", { cwd: projectDir });
           break;
         case "vite":
-          // Don't create directory, let Vite handle it
-          s.stop("Starting Vite initialization");
-          await new Promise((resolve, reject) => {
+          await new Promise<void>((resolve, reject) => {
             const child = spawn(
               "npm",
               [
@@ -275,40 +273,68 @@ async function initializeProject(directory: string): Promise<string> {
                 "react-ts",
               ],
               {
-                stdio: "inherit",
+                // Pipe stdout to null to silence the output
+                stdio: ["inherit", "pipe", "pipe"],
                 cwd: directory,
                 env: { ...process.env, PATH: process.env.PATH },
               }
             );
-            child.on("close", (code) =>
-              code === 0
-                ? resolve(null)
-                : reject(new Error(`Vite exited with code ${code}`))
-            );
+
+            // Optional: Handle specific error messages you want to show
+            child.stderr.on("data", (data) => {
+              const error = data.toString();
+              if (error.includes("ERR!")) {
+                p.log.error(chalk.red(error));
+              }
+            });
+
+            child.on("error", (err) => reject(err));
+
+            child.on("close", (code) => {
+              if (code === 0) {
+                resolve();
+              } else {
+                reject(new Error(`Vite process exited with code ${code}`));
+              }
+            });
           });
-          break;
+          s.stop("Project initialized successfully");
+          return projectDir;
+
         case "next":
-          // Don't create directory, let Next.js handle it
-          s.stop("Starting Next.js initialization");
-          await new Promise((resolve, reject) => {
+          await new Promise<void>((resolve, reject) => {
             const child = spawn(
               "npx",
               ["create-next-app@latest", projectName],
               {
-                stdio: "inherit",
+                // Pipe stdout to null to silence the output
+                stdio: ["inherit", "pipe", "pipe"],
                 cwd: directory,
                 env: { ...process.env, PATH: process.env.PATH },
               }
             );
-            child.on("close", (code) =>
-              code === 0
-                ? resolve(null)
-                : reject(new Error(`Next.js exited with code ${code}`))
-            );
+
+            // Optional: Handle specific error messages you want to show
+            child.stderr.on("data", (data) => {
+              const error = data.toString();
+              if (error.includes("ERR!")) {
+                p.log.error(chalk.red(error));
+              }
+            });
+
+            child.on("error", (err) => reject(err));
+
+            child.on("close", (code) => {
+              if (code === 0) {
+                resolve();
+              } else {
+                reject(new Error(`Next.js process exited with code ${code}`));
+              }
+            });
           });
-          break;
+          s.stop("Project initialized successfully");
+          return projectDir;
       }
-      s.stop("Project initialized successfully");
     } catch (error) {
       s.stop("Failed to initialize project");
       // Clean up the directory if initialization failed
@@ -321,19 +347,14 @@ async function initializeProject(directory: string): Promise<string> {
       }
       throw error;
     }
-
-    // After successful initialization, call addRecipe with the new project directory
-    return projectDir; // Return the new project directory
   }
 
   return directory;
 }
 
 async function addRecipe(url: string, targetDir: string = process.cwd()) {
-  p.intro(chalk.bold("Hiro CLI - Add Recipe"));
-
   const s = p.spinner();
-  s.start("Fetching recipe data");
+  s.start("Writing code blocks");
 
   try {
     const { recipeId, codeBlocks, dependencies, files, error } = await fetchUrl(
@@ -351,8 +372,6 @@ async function addRecipe(url: string, targetDir: string = process.cwd()) {
       p.log.warn(chalk.yellow("No code blocks found in registry response."));
       process.exit(1);
     }
-
-    s.stop("Recipe data fetched successfully");
 
     // Determine if we need a directory or just a single file
     const isSingleFile = files && files.length === 1;
@@ -381,8 +400,6 @@ async function addRecipe(url: string, targetDir: string = process.cwd()) {
       process.chdir(projectDir);
       workingDir = projectDir;
     }
-
-    s.start("Writing code blocks");
 
     for (const [index, block] of codeBlocks.entries()) {
       let filePath;
