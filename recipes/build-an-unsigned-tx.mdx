@@ -10,8 +10,11 @@ tags:
   - public keys
 files:
   - name: build-an-unsigned-tx.ts
-    path: scripts/build-an-unsigned-tx.ts
+    path: lib/build-an-unsigned-tx.ts
     type: typescript
+dependencies:
+  "@stacks/encryption": "^7.0.2"
+  "@stacks/transactions": "^7.0.2"
 ---
 
 ```typescript
