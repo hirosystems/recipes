@@ -273,14 +273,12 @@ async function initializeProject(directory: string): Promise<string> {
                 "react-ts",
               ],
               {
-                // Pipe stdout to null to silence the output
                 stdio: ["inherit", "pipe", "pipe"],
                 cwd: directory,
                 env: { ...process.env, PATH: process.env.PATH },
               }
             );
 
-            // Optional: Handle specific error messages you want to show
             child.stderr.on("data", (data) => {
               const error = data.toString();
               if (error.includes("ERR!")) {
@@ -307,14 +305,12 @@ async function initializeProject(directory: string): Promise<string> {
               "npx",
               ["create-next-app@latest", projectName],
               {
-                // Pipe stdout to null to silence the output
                 stdio: ["inherit", "pipe", "pipe"],
                 cwd: directory,
                 env: { ...process.env, PATH: process.env.PATH },
               }
             );
 
-            // Optional: Handle specific error messages you want to show
             child.stderr.on("data", (data) => {
               const error = data.toString();
               if (error.includes("ERR!")) {
@@ -347,6 +343,8 @@ async function initializeProject(directory: string): Promise<string> {
       }
       throw error;
     }
+    s.stop("Project initialized successfully");
+    return projectDir;
   }
 
   return directory;
@@ -375,7 +373,7 @@ async function addRecipe(url: string, targetDir: string = process.cwd()) {
 
     // Determine if we need a directory or just a single file
     const isSingleFile = files && files.length === 1;
-    let workingDir = targetDir; // Use a separate variable for the working directory
+    let workingDir = targetDir;
 
     if (!isSingleFile) {
       const recipeDir = await p.text({
@@ -392,14 +390,7 @@ async function addRecipe(url: string, targetDir: string = process.cwd()) {
       workingDir = resolve(targetDir, recipeDir as string);
     }
 
-    // Initialize project if needed and get the project directory
-    const projectDir = await initializeProject(workingDir);
-
-    // Change to the newly created project directory
-    if (projectDir !== process.cwd()) {
-      process.chdir(projectDir);
-      workingDir = projectDir;
-    }
+    // No second call to `initializeProject` here; we assume we're already in the project directory
 
     for (const [index, block] of codeBlocks.entries()) {
       let filePath;
