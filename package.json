@@ -1,5 +1,5 @@
 {
-  "name": "@hirosystems/recipes",
+  "name": "@secondlayer/recipes",
   "version": "1.0.0",
   "main": "cli.ts",
   "dependencies": {
@@ -10,7 +10,7 @@
     "hono": "^3.0.0"
   },
   "bin": {
-    "hiro": "./cli.ts"
+    "recipes": "./cli.ts"
   },
   "description": "CLI for installing recipe code blocks",
   "scripts": {
