@@ -1,6 +1,6 @@
 {
   "name": "@secondlayer/recipes",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "main": "cli.ts",
   "dependencies": {
     "@clack/prompts": "^0.9.1",

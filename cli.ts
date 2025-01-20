@@ -532,7 +532,7 @@ program
           for (const recipeId of selectedRecipes) {
             try {
               const result = await addRecipe(
-                `http://localhost:3000/registry/${recipeId}`,
+                `${API_URL}/registry/${recipeId}`,
                 projectDir,
                 preferredManager
               );
