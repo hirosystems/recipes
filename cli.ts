@@ -9,6 +9,11 @@ import { existsSync } from "fs";
 import { exec, spawn } from "child_process";
 import { promisify } from "util";
 import { join } from "path";
+import { config } from "dotenv";
+
+config();
+
+const API_URL = process.env.API_URL || "http://localhost:3000";
 
 const program = new Command();
 
@@ -493,7 +498,7 @@ program
   .action(async (url?: string) => {
     try {
       if (!url) {
-        const response = await fetch("http://localhost:3000/recipes");
+        const response = await fetch(`${API_URL}/recipes`);
         if (!response.ok) {
           throw new Error(
             `Failed to fetch recipes, status: ${response.status}`
