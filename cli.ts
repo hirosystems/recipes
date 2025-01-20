@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
 import * as p from "@clack/prompts";
+import prompts from "prompts";
 import chalk from "chalk";
 import { resolve, dirname, basename } from "path";
 import { mkdir, writeFile, readFile, rm } from "fs/promises";
@@ -399,112 +400,86 @@ async function addRecipe(
   url: string,
   targetDir: string = process.cwd(),
   preferredManager?: PackageManager
-) {
-  await p.tasks([
-    {
-      title: "Adding recipe",
-      task: async (message) => {
-        try {
-          const { recipeId, codeBlocks, dependencies, files, error } =
-            await fetchUrl(url);
+): Promise<string> {
+  try {
+    const { recipeId, codeBlocks, dependencies, files, error } = await fetchUrl(
+      url
+    );
 
-          if (error) {
-            p.log.error(chalk.red(`Error from registry: ${error}`));
-            process.exit(1);
+    if (error) {
+      p.log.error(chalk.red(`Error from registry: ${error}`));
+      process.exit(1);
+    }
+
+    if (!Array.isArray(codeBlocks) || codeBlocks.length === 0) {
+      p.log.warn(chalk.yellow("No code blocks found in registry response."));
+      process.exit(1);
+    }
+
+    const isSingleFile = files && files.length === 1;
+    let workingDir = targetDir;
+
+    if (!isSingleFile) {
+      const recipeDir = await p.text({
+        message: "Where would you like to save the recipe?",
+        placeholder: `./${recipeId || "untitled-recipe"}`,
+        initialValue: `./${recipeId || "untitled-recipe"}`,
+      });
+
+      if (p.isCancel(recipeDir)) {
+        p.cancel("Operation cancelled.");
+        process.exit(0);
+      }
+
+      workingDir = resolve(targetDir, recipeDir as string);
+    }
+
+    for (const [index, block] of codeBlocks.entries()) {
+      let filePath;
+      if (isSingleFile) {
+        // Use the path from files frontmatter for single file
+        const fileInfo = files[0];
+        filePath = resolve(workingDir, fileInfo.path);
+        // Ensure directory exists for the file
+        await mkdir(dirname(filePath), { recursive: true });
+      } else {
+        // Use the files info if available, otherwise fall back to index-based naming
+        const fileInfo = files?.[index];
+        if (fileInfo) {
+          filePath = resolve(workingDir, fileInfo.path);
+          await mkdir(dirname(filePath), { recursive: true });
+        } else {
+          const mappedExtension = block.language
+            ? languageExtensionMap[block.language.toLowerCase()]
+            : null;
+          let extension = mappedExtension ? `.${mappedExtension}` : ".txt";
+          if (
+            !mappedExtension &&
+            block.language &&
+            /^[a-zA-Z0-9]+$/.test(block.language)
+          ) {
+            extension = `.${block.language}`;
           }
-
-          if (!Array.isArray(codeBlocks) || codeBlocks.length === 0) {
-            p.log.warn(
-              chalk.yellow("No code blocks found in registry response.")
-            );
-            process.exit(1);
-          }
-
-          const isSingleFile = files && files.length === 1;
-          let workingDir = targetDir;
-
-          if (!isSingleFile) {
-            const recipeDir = await p.text({
-              message: "Where would you like to save the recipe?",
-              placeholder: `./${recipeId || "untitled-recipe"}`,
-              initialValue: `./${recipeId || "untitled-recipe"}`,
-            });
-
-            if (p.isCancel(recipeDir)) {
-              p.cancel("Operation cancelled.");
-              process.exit(0);
-            }
-
-            workingDir = resolve(targetDir, recipeDir as string);
-          }
-
-          for (const [index, block] of codeBlocks.entries()) {
-            let filePath;
-            if (isSingleFile) {
-              // Use the path from files frontmatter for single file
-              const fileInfo = files[0];
-              filePath = resolve(workingDir, fileInfo.path);
-              // Ensure directory exists for the file
-              await mkdir(dirname(filePath), { recursive: true });
-            } else {
-              // Use the files info if available, otherwise fall back to index-based naming
-              const fileInfo = files?.[index];
-              if (fileInfo) {
-                filePath = resolve(workingDir, fileInfo.path);
-                await mkdir(dirname(filePath), { recursive: true });
-              } else {
-                const mappedExtension = block.language
-                  ? languageExtensionMap[block.language.toLowerCase()]
-                  : null;
-                let extension = mappedExtension
-                  ? `.${mappedExtension}`
-                  : ".txt";
-                if (
-                  !mappedExtension &&
-                  block.language &&
-                  /^[a-zA-Z0-9]+$/.test(block.language)
-                ) {
-                  extension = `.${block.language}`;
-                }
-                filePath = resolve(
-                  workingDir,
-                  `code-block-${index + 1}${extension}`
-                );
-              }
-            }
-
-            const cleanedCode = cleanCodeBlock(block.code, block.language);
-            await writeFile(filePath, cleanedCode, "utf-8");
-          }
-
-          if (dependencies) {
-            await installDependencies(
-              workingDir,
-              dependencies,
-              preferredManager
-            );
-          }
-
-          p.outro(
-            chalk.green(
-              `Recipe '${recipeId}' has been added successfully${
-                isSingleFile ? "" : ` to ${workingDir}`
-              }`
-            )
-          );
-        } catch (err) {
-          p.log.error(chalk.red("Error occurred"));
-          const errorMessage =
-            err instanceof Error ? err.message : "Unknown error occurred";
-          p.log.error(
-            chalk.red(`Failed to fetch or write code blocks: ${errorMessage}`)
-          );
-          process.exit(1);
+          filePath = resolve(workingDir, `code-block-${index + 1}${extension}`);
         }
-        return "Recipe added";
-      },
-    },
-  ]);
+      }
+
+      const cleanedCode = cleanCodeBlock(block.code, block.language);
+      await writeFile(filePath, cleanedCode, "utf-8");
+    }
+
+    if (dependencies) {
+      await installDependencies(workingDir, dependencies, preferredManager);
+    }
+
+    return `'${recipeId}' has been added successfully${
+      isSingleFile ? "" : ` to ${workingDir}`
+    }`;
+  } catch (err) {
+    const errorMessage =
+      err instanceof Error ? err.message : "Unknown error occurred";
+    throw new Error(`Failed to fetch or write code blocks: ${errorMessage}`);
+  }
 }
 
 program
@@ -513,17 +488,87 @@ program
   .version("1.0.0");
 
 program
-  .command("add <url>")
-  .description("Add a new recipe from a given URL")
-  .action(async (url: string) => {
+  .command("add [url]")
+  .description("Add a new recipe from a URL or select from available recipes")
+  .action(async (url?: string) => {
     try {
-      // Get both project directory and preferred manager from initialization
-      const { projectDir, preferredManager } = await initializeProject(
-        process.cwd()
-      );
+      if (!url) {
+        const response = await fetch("http://localhost:3000/recipes");
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch recipes, status: ${response.status}`
+          );
+        }
+        const recipes = await response.json();
 
-      // Then add the recipe to the initialized project directory
-      await addRecipe(url, projectDir, preferredManager);
+        if (!Array.isArray(recipes) || recipes.length === 0) {
+          p.log.warn(chalk.yellow("No recipes available."));
+          process.exit(0);
+        }
+
+        const selectedRecipes = await p.multiselect({
+          message: "Hit [SPACE] to select recipes:",
+          options: recipes.map((recipe) => ({
+            value: recipe,
+            label: recipe,
+          })),
+          required: true,
+        });
+
+        if (p.isCancel(selectedRecipes)) {
+          p.cancel("Operation cancelled.");
+          process.exit(0);
+        }
+
+        const { projectDir, preferredManager } = await initializeProject(
+          process.cwd()
+        );
+
+        if (Array.isArray(selectedRecipes) && selectedRecipes.length > 0) {
+          const spinner = p.spinner();
+          spinner.start("Adding recipes...");
+
+          const results: string[] = [];
+          for (const recipeId of selectedRecipes) {
+            try {
+              const result = await addRecipe(
+                `http://localhost:3000/registry/${recipeId}`,
+                projectDir,
+                preferredManager
+              );
+              results.push(result);
+            } catch (error) {
+              spinner.stop(`Failed to add recipe ${recipeId}: ${error}`);
+              process.exit(1);
+            }
+          }
+
+          if (selectedRecipes.length === 1) {
+            spinner.stop("Recipe added");
+          } else {
+            spinner.stop("All recipes added");
+          }
+
+          // Output all results together
+          results.forEach((result) => {
+            p.log.success(chalk.green(`└ ${result}`));
+          });
+
+          p.outro("Done");
+        }
+      } else {
+        // Single URL case
+        const { projectDir, preferredManager } = await initializeProject(
+          process.cwd()
+        );
+        const spinner = p.spinner();
+        spinner.start("Adding recipe...");
+
+        const result = await addRecipe(url, projectDir, preferredManager);
+        spinner.stop("Recipe added");
+        p.log.success(chalk.green(`└ ${result}`));
+        p.outro("Completed");
+      }
     } catch (error) {
       p.log.error(chalk.red(`Failed to add recipe: ${error}`));
       process.exit(1);
