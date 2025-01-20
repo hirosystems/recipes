@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
 import * as p from "@clack/prompts";
-import prompts from "prompts";
 import chalk from "chalk";
 import { resolve, dirname, basename } from "path";
 import { mkdir, writeFile, readFile, rm } from "fs/promises";
