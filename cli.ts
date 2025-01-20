@@ -227,25 +227,61 @@ async function initializeProject(
       process.exit(0);
     }
 
-    const projectLocation = await p.text({
-      message: "Project name:",
-      placeholder:
-        template === "next"
-          ? "next-app"
-          : template === "vite"
-          ? "vite-project"
-          : "my-app",
-      initialValue:
-        template === "next"
-          ? "next-app"
-          : template === "vite"
-          ? "vite-project"
-          : "my-app",
-    });
+    let projectLocation;
+    let projectDir;
+    let dirExists = true;
 
-    if (p.isCancel(projectLocation)) {
-      p.cancel("Operation cancelled.");
-      process.exit(0);
+    while (dirExists) {
+      projectLocation = await p.text({
+        message: "Project name:",
+        placeholder:
+          template === "next"
+            ? "next-app"
+            : template === "vite"
+            ? "vite-project"
+            : "my-app",
+        initialValue:
+          template === "next"
+            ? "next-app"
+            : template === "vite"
+            ? "vite-project"
+            : "my-app",
+      });
+
+      if (p.isCancel(projectLocation)) {
+        p.cancel("Operation cancelled.");
+        process.exit(0);
+      }
+
+      projectDir = resolve(directory, projectLocation);
+
+      if (existsSync(projectDir)) {
+        const action = await p.select({
+          message: `Target directory "${projectLocation}" is not empty. Please choose how to proceed:`,
+          options: [
+            { value: "cancel", label: "Cancel operation" },
+            { value: "remove", label: "Remove existing files and continue" },
+            { value: "try-again", label: "Choose another name" },
+          ],
+        });
+
+        if (p.isCancel(action) || action === "cancel") {
+          p.cancel("Operation cancelled.");
+          process.exit(0);
+        } else if (action === "remove") {
+          try {
+            await rm(projectDir, { recursive: true, force: true });
+            dirExists = false;
+          } catch (error) {
+            p.log.error(chalk.red(`Failed to remove directory ${projectDir}`));
+            throw error;
+          }
+        } else if (action === "try-again") {
+          continue; // This will loop back to the project name prompt
+        }
+      } else {
+        dirExists = false;
+      }
     }
 
     let preferredManager: PackageManager | undefined;
@@ -267,18 +303,11 @@ async function initializeProject(
       }
     }
 
-    const projectDir = resolve(directory, projectLocation);
-    const projectName = basename(projectDir);
-
-    // Check if directory already exists
-    if (existsSync(projectDir)) {
-      p.log.error(
-        chalk.red(
-          `Directory ${projectDir} already exists. Please choose a different location.`
-        )
-      );
-      process.exit(1);
+    if (!projectDir) {
+      throw new Error("Project directory is undefined");
     }
+
+    const projectName = basename(projectDir);
 
     try {
       switch (template) {
