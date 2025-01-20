@@ -21,9 +21,32 @@ const languageExtensionMap: Record<string, string> = {
 
 const execAsync = promisify(exec);
 
+type PackageManager = "npm" | "yarn" | "pnpm" | "bun";
+
 async function detectPackageManager(
-  directory: string
-): Promise<"npm" | "yarn" | "pnpm" | "bun"> {
+  directory: string,
+  preferredManager?: PackageManager
+): Promise<PackageManager> {
+  // If preferred manager is specified, verify it's available
+
+  if (preferredManager) {
+    try {
+      const command =
+        preferredManager === "bun"
+          ? "bun --version"
+          : `${preferredManager} --version`;
+      await execAsync(command);
+      return preferredManager;
+    } catch {
+      // Fallback to auto-detection if preferred manager isn't available
+      p.log.warn(
+        chalk.yellow(
+          `${preferredManager} is not available, falling back to auto-detection`
+        )
+      );
+    }
+  }
+
   // Check for lockfiles first
   if (existsSync(join(directory, "bun.lockb"))) {
     // Verify bun is actually available
@@ -62,13 +85,15 @@ async function detectPackageManager(
 
 async function installDependencies(
   directory: string,
-  dependencies: Record<string, string>
+  dependencies: Record<string, string>,
+  preferredManager?: PackageManager
 ) {
   if (Object.keys(dependencies).length === 0) return;
 
-  const packageManager = await detectPackageManager(directory);
-  const s = p.spinner();
-  s.start("Installing dependencies");
+  const packageManager = await detectPackageManager(
+    directory,
+    preferredManager
+  );
 
   try {
     const deps = Object.entries(dependencies)
@@ -83,15 +108,13 @@ async function installDependencies(
     };
 
     const command = installCommands[packageManager];
-    // Add shell: true for Windows compatibility and PATH resolution
     await execAsync(command, {
       cwd: directory,
       shell: process.platform === "win32" ? "cmd" : "bash",
       env: { ...process.env, PATH: process.env.PATH },
     });
-    s.stop("Dependencies installed successfully");
   } catch (error) {
-    s.stop("Failed to install dependencies");
+    p.log.error(chalk.red("Failed to install dependencies"));
     throw error;
   }
 }
@@ -160,26 +183,23 @@ const projectTemplates: ProjectTemplate[] = [
   {
     label: "Bun",
     value: "bun",
-    hint: "Initialize a basic Bun project",
+    hint: "bun init",
   },
   {
     label: "Node.js",
     value: "npm",
-    hint: "Initialize a basic Node.js project",
+    hint: "npm init -y",
   },
   {
     label: "Vite",
     value: "vite",
-    hint: "Create a new Vite project",
-  },
-  {
-    label: "Next.js",
-    value: "next",
-    hint: "Create a new Next.js project",
+    hint: "npm create vite@latest",
   },
 ];
 
-async function initializeProject(directory: string): Promise<string> {
+async function initializeProject(
+  directory: string
+): Promise<{ projectDir: string; preferredManager?: PackageManager }> {
   const hasPackageJson = existsSync(join(directory, "package.json"));
 
   if (!hasPackageJson) {
@@ -188,7 +208,7 @@ async function initializeProject(directory: string): Promise<string> {
     );
 
     const shouldInit = await p.confirm({
-      message: "Would you like to initialize a new project?",
+      message: "Add recipe to new project?",
       initialValue: true,
     });
 
@@ -198,7 +218,7 @@ async function initializeProject(directory: string): Promise<string> {
     }
 
     const template = await p.select({
-      message: "Select a project template:",
+      message: "Select a template:",
       options: projectTemplates,
     });
 
@@ -208,7 +228,7 @@ async function initializeProject(directory: string): Promise<string> {
     }
 
     const projectLocation = await p.text({
-      message: "Where would you like to initialize this project?",
+      message: "Project name:",
       placeholder:
         template === "next"
           ? "next-app"
@@ -228,6 +248,25 @@ async function initializeProject(directory: string): Promise<string> {
       process.exit(0);
     }
 
+    let preferredManager: PackageManager | undefined;
+
+    if (template === "vite") {
+      preferredManager = (await p.select({
+        message: "Select package manager:",
+        options: [
+          { value: "npm", label: "npm" },
+          { value: "yarn", label: "yarn" },
+          { value: "pnpm", label: "pnpm" },
+          { value: "bun", label: "bun" },
+        ],
+      })) as PackageManager;
+
+      if (p.isCancel(preferredManager)) {
+        p.cancel("Operation cancelled.");
+        process.exit(0);
+      }
+    }
+
     const projectDir = resolve(directory, projectLocation);
     const projectName = basename(projectDir);
 
@@ -241,98 +280,76 @@ async function initializeProject(directory: string): Promise<string> {
       process.exit(1);
     }
 
-    const s = p.spinner();
-    s.start("Creating project directory");
-
     try {
       switch (template) {
         case "bun":
-          // Create directory first for bun
           await mkdir(projectDir, { recursive: true });
-          s.stop("Project directory created");
-          s.start("Initializing project");
           await execAsync("bun init", { cwd: projectDir });
           break;
         case "npm":
-          // Create directory first for npm
           await mkdir(projectDir, { recursive: true });
-          s.stop("Project directory created");
-          s.start("Initializing project");
           await execAsync("npm init -y", { cwd: projectDir });
           break;
         case "vite":
-          await new Promise<void>((resolve, reject) => {
-            const child = spawn(
-              "npm",
-              [
-                "create",
-                "vite@latest",
-                projectName,
-                "--",
-                "--template",
-                "react-ts",
-              ],
-              {
-                stdio: ["inherit", "pipe", "pipe"],
-                cwd: directory,
-                env: { ...process.env, PATH: process.env.PATH },
-              }
-            );
+          await p.tasks([
+            {
+              title: "Creating project",
+              task: async (message) => {
+                const packageManager = await detectPackageManager(
+                  directory,
+                  preferredManager
+                );
+                await new Promise<void>((resolve, reject) => {
+                  const createCommand =
+                    packageManager === "npm"
+                      ? [
+                          "create",
+                          "vite@latest",
+                          projectName,
+                          "--",
+                          "--template",
+                          "react-ts",
+                        ]
+                      : [
+                          "create",
+                          "vite",
+                          projectName,
+                          "--template",
+                          "react-ts",
+                        ];
 
-            child.stderr.on("data", (data) => {
-              const error = data.toString();
-              if (error.includes("ERR!")) {
-                p.log.error(chalk.red(error));
-              }
-            });
+                  const child = spawn(packageManager, createCommand, {
+                    stdio: ["inherit", "pipe", "pipe"],
+                    cwd: directory,
+                    env: { ...process.env, PATH: process.env.PATH },
+                  });
 
-            child.on("error", (err) => reject(err));
+                  child.stderr.on("data", (data) => {
+                    const error = data.toString();
+                    if (error.includes("ERR!")) {
+                      p.log.error(chalk.red(error));
+                    }
+                  });
 
-            child.on("close", (code) => {
-              if (code === 0) {
-                resolve();
-              } else {
-                reject(new Error(`Vite process exited with code ${code}`));
-              }
-            });
-          });
-          s.stop("Project initialized successfully");
-          return projectDir;
+                  child.on("error", (err) => reject(err));
 
-        case "next":
-          await new Promise<void>((resolve, reject) => {
-            const child = spawn(
-              "npx",
-              ["create-next-app@latest", projectName],
-              {
-                stdio: ["inherit", "pipe", "pipe"],
-                cwd: directory,
-                env: { ...process.env, PATH: process.env.PATH },
-              }
-            );
-
-            child.stderr.on("data", (data) => {
-              const error = data.toString();
-              if (error.includes("ERR!")) {
-                p.log.error(chalk.red(error));
-              }
-            });
-
-            child.on("error", (err) => reject(err));
-
-            child.on("close", (code) => {
-              if (code === 0) {
-                resolve();
-              } else {
-                reject(new Error(`Next.js process exited with code ${code}`));
-              }
-            });
-          });
-          s.stop("Project initialized successfully");
-          return projectDir;
+                  child.on("close", (code) => {
+                    if (code === 0) {
+                      resolve();
+                    } else {
+                      reject(
+                        new Error(`Vite process exited with code ${code}`)
+                      );
+                    }
+                  });
+                });
+                return "Project created";
+              },
+            },
+          ]);
       }
     } catch (error) {
-      s.stop("Failed to initialize project");
+      p.log.error(chalk.red("Failed to initialize project"));
       // Clean up the directory if initialization failed
       try {
         if (existsSync(projectDir)) {
@@ -343,111 +360,122 @@ async function initializeProject(directory: string): Promise<string> {
       }
       throw error;
     }
-    s.stop("Project initialized successfully");
-    return projectDir;
+    return { projectDir, preferredManager };
   }
 
-  return directory;
+  return { projectDir: directory };
 }
 
-async function addRecipe(url: string, targetDir: string = process.cwd()) {
-  const s = p.spinner();
-  s.start("Writing code blocks");
+async function addRecipe(
+  url: string,
+  targetDir: string = process.cwd(),
+  preferredManager?: PackageManager
+) {
+  await p.tasks([
+    {
+      title: "Adding recipe",
+      task: async (message) => {
+        try {
+          const { recipeId, codeBlocks, dependencies, files, error } =
+            await fetchUrl(url);
 
-  try {
-    const { recipeId, codeBlocks, dependencies, files, error } = await fetchUrl(
-      url
-    );
-
-    if (error) {
-      s.stop("Error fetching recipe");
-      p.log.error(chalk.red(`Error from registry: ${error}`));
-      process.exit(1);
-    }
-
-    if (!Array.isArray(codeBlocks) || codeBlocks.length === 0) {
-      s.stop("No code blocks found");
-      p.log.warn(chalk.yellow("No code blocks found in registry response."));
-      process.exit(1);
-    }
-
-    // Determine if we need a directory or just a single file
-    const isSingleFile = files && files.length === 1;
-    let workingDir = targetDir;
-
-    if (!isSingleFile) {
-      const recipeDir = await p.text({
-        message: "Where would you like to save the recipe?",
-        placeholder: `./${recipeId || "untitled-recipe"}`,
-        initialValue: `./${recipeId || "untitled-recipe"}`,
-      });
-
-      if (p.isCancel(recipeDir)) {
-        p.cancel("Operation cancelled.");
-        process.exit(0);
-      }
-
-      workingDir = resolve(targetDir, recipeDir as string);
-    }
-
-    // No second call to `initializeProject` here; we assume we're already in the project directory
-
-    for (const [index, block] of codeBlocks.entries()) {
-      let filePath;
-      if (isSingleFile) {
-        // Use the path from files frontmatter for single file
-        const fileInfo = files[0];
-        filePath = resolve(workingDir, fileInfo.path);
-        // Ensure directory exists for the file
-        await mkdir(dirname(filePath), { recursive: true });
-      } else {
-        // Use the files info if available, otherwise fall back to index-based naming
-        const fileInfo = files?.[index];
-        if (fileInfo) {
-          filePath = resolve(workingDir, fileInfo.path);
-          await mkdir(dirname(filePath), { recursive: true });
-        } else {
-          const mappedExtension = block.language
-            ? languageExtensionMap[block.language.toLowerCase()]
-            : null;
-          let extension = mappedExtension ? `.${mappedExtension}` : ".txt";
-          if (
-            !mappedExtension &&
-            block.language &&
-            /^[a-zA-Z0-9]+$/.test(block.language)
-          ) {
-            extension = `.${block.language}`;
+          if (error) {
+            p.log.error(chalk.red(`Error from registry: ${error}`));
+            process.exit(1);
           }
-          filePath = resolve(workingDir, `code-block-${index + 1}${extension}`);
+
+          if (!Array.isArray(codeBlocks) || codeBlocks.length === 0) {
+            p.log.warn(
+              chalk.yellow("No code blocks found in registry response.")
+            );
+            process.exit(1);
+          }
+
+          const isSingleFile = files && files.length === 1;
+          let workingDir = targetDir;
+
+          if (!isSingleFile) {
+            const recipeDir = await p.text({
+              message: "Where would you like to save the recipe?",
+              placeholder: `./${recipeId || "untitled-recipe"}`,
+              initialValue: `./${recipeId || "untitled-recipe"}`,
+            });
+
+            if (p.isCancel(recipeDir)) {
+              p.cancel("Operation cancelled.");
+              process.exit(0);
+            }
+
+            workingDir = resolve(targetDir, recipeDir as string);
+          }
+
+          for (const [index, block] of codeBlocks.entries()) {
+            let filePath;
+            if (isSingleFile) {
+              // Use the path from files frontmatter for single file
+              const fileInfo = files[0];
+              filePath = resolve(workingDir, fileInfo.path);
+              // Ensure directory exists for the file
+              await mkdir(dirname(filePath), { recursive: true });
+            } else {
+              // Use the files info if available, otherwise fall back to index-based naming
+              const fileInfo = files?.[index];
+              if (fileInfo) {
+                filePath = resolve(workingDir, fileInfo.path);
+                await mkdir(dirname(filePath), { recursive: true });
+              } else {
+                const mappedExtension = block.language
+                  ? languageExtensionMap[block.language.toLowerCase()]
+                  : null;
+                let extension = mappedExtension
+                  ? `.${mappedExtension}`
+                  : ".txt";
+                if (
+                  !mappedExtension &&
+                  block.language &&
+                  /^[a-zA-Z0-9]+$/.test(block.language)
+                ) {
+                  extension = `.${block.language}`;
+                }
+                filePath = resolve(
+                  workingDir,
+                  `code-block-${index + 1}${extension}`
+                );
+              }
+            }
+
+            const cleanedCode = cleanCodeBlock(block.code, block.language);
+            await writeFile(filePath, cleanedCode, "utf-8");
+          }
+
+          if (dependencies) {
+            await installDependencies(
+              workingDir,
+              dependencies,
+              preferredManager
+            );
+          }
+
+          p.outro(
+            chalk.green(
+              `Recipe '${recipeId}' has been added successfully${
+                isSingleFile ? "" : ` to ${workingDir}`
+              }`
+            )
+          );
+        } catch (err) {
+          p.log.error(chalk.red("Error occurred"));
+          const errorMessage =
+            err instanceof Error ? err.message : "Unknown error occurred";
+          p.log.error(
+            chalk.red(`Failed to fetch or write code blocks: ${errorMessage}`)
+          );
+          process.exit(1);
         }
-      }
-
-      const cleanedCode = cleanCodeBlock(block.code, block.language);
-      await writeFile(filePath, cleanedCode, "utf-8");
-    }
-
-    s.stop("Code blocks written successfully");
-
-    if (dependencies) {
-      await installDependencies(workingDir, dependencies);
-    }
-
-    p.outro(
-      chalk.green(
-        `Recipe '${recipeId}' has been added successfully${
-          isSingleFile ? "" : ` to ${workingDir}`
-        }`
-      )
-    );
-  } catch (err) {
-    s.stop("Error occurred");
-    const errorMessage =
-      err instanceof Error ? err.message : "Unknown error occurred";
-    p.log.error(
-      chalk.red(`Failed to fetch or write code blocks: ${errorMessage}`)
-    );
-    process.exit(1);
-  }
+        return "Recipe added";
+      },
+    },
+  ]);
 }
 
 program
@@ -460,11 +488,13 @@ program
   .description("Add a new recipe from a given URL")
   .action(async (url: string) => {
     try {
-      // First, initialize the project if needed
-      const projectDir = await initializeProject(process.cwd());
+      // Get both project directory and preferred manager from initialization
+      const { projectDir, preferredManager } = await initializeProject(
+        process.cwd()
+      );
 
       // Then add the recipe to the initialized project directory
-      await addRecipe(url, projectDir);
+      await addRecipe(url, projectDir, preferredManager);
     } catch (error) {
       p.log.error(chalk.red(`Failed to add recipe: ${error}`));
       process.exit(1);
