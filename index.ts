@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { serve } from "bun";
 import { readFile, readdir } from "fs/promises";
 import { join } from "path";
 import matter from "gray-matter";
@@ -61,10 +60,4 @@ app.get("/recipes", async (c) => {
   }
 });
 
-const port = 3000;
-console.log(`Server is running on http://localhost:${port}`);
-
-serve({
-  fetch: app.fetch,
-  port,
-});
+export default app;
