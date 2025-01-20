@@ -182,17 +182,17 @@ interface ProjectTemplate {
 
 const projectTemplates: ProjectTemplate[] = [
   {
-    label: "Bun",
-    value: "bun",
-    hint: "bun init",
-  },
-  {
     label: "Node.js",
     value: "npm",
     hint: "npm init -y",
   },
   {
-    label: "Vite",
+    label: "Bun",
+    value: "bun",
+    hint: "bun init",
+  },
+  {
+    label: "React Vite",
     value: "vite",
     hint: "npm create vite@latest",
   },
@@ -208,18 +208,8 @@ async function initializeProject(
       chalk.yellow("\nNo package.json found in the current directory.")
     );
 
-    const shouldInit = await p.confirm({
-      message: "Add recipe to new project?",
-      initialValue: true,
-    });
-
-    if (p.isCancel(shouldInit) || !shouldInit) {
-      p.cancel("Operation cancelled.");
-      process.exit(0);
-    }
-
     const template = await p.select({
-      message: "Select a template:",
+      message: "Select installation type:",
       options: projectTemplates,
     });
 
