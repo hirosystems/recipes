@@ -9,11 +9,7 @@ import { existsSync } from "fs";
 import { exec, spawn } from "child_process";
 import { promisify } from "util";
 import { join } from "path";
-import { config } from "dotenv";
-
-config();
-
-const API_URL = process.env.API_URL || "http://localhost:3000";
+import { API_URL } from "./lib/config";
 
 const program = new Command();
 
