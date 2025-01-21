@@ -21,7 +21,10 @@ files:
 (define-constant VERSION_BYTES 0x1a) ;; On mainnet, use 0x16
 (define-constant ADDRESS 'SP1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRCBGD7R) ;; On mainnet, use 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
 
+;; !hover get-hash-bytes
 (define-read-only (get-hash-bytes)
+  ;; !hover get-hash-bytes
   (get hash-bytes (unwrap-err-panic (principal-destruct? ADDRESS)))
+;; !hover get-hash-bytes
 )
 ```
