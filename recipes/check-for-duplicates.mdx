@@ -1,0 +1,42 @@
+---
+id: check-for-duplicates
+title: Check for duplicates
+description: How to check for duplicates for characters in a string and items in a list.
+date: 2025.01.15
+categories:
+  - clarity
+tags:
+  - duplicates
+  - strings
+dependencies: []
+files:
+  - name: check-for-duplicate-chars-in-a-string.ts
+    path: contracts/check-for-duplicate-chars-in-a-string.ts
+    type: clarity
+---
+
+```clarity
+;; !hover has-duplicate-chars?
+(define-read-only (has-duplicate-chars? (input (string-ascii 200)))
+  (is-none (fold dup input (slice? (concat input "|END") u1  (+ (len input) u4))))
+)
+
+(define-private (dup (ch (string-ascii 1)) (out (optional (string-ascii 204))))
+  (match out out_some 
+    (match (index-of? (unwrap-panic (slice? out_some u0 (- (len out_some) u4))) ch ) found none (slice? out_some u1  (len out_some)))
+    out
+  )
+)
+
+;; !hover has-duplicates?
+(define-read-only (has-duplicates? (input (list 10 uint)))
+  (or 
+    (is-dup input u0) (is-dup input u1) (is-dup input u2) (is-dup input u3) (is-dup input u4) 
+    (is-dup input u5) (is-dup input u6) (is-dup input u7) (is-dup input u8) (is-dup input u9)
+  )
+)
+
+(define-read-only (is-dup (input (list 10 uint)) (i uint))
+  (is-some (index-of? (unwrap! (slice? input (+ i u1) (len input)) false) (unwrap! (element-at? input i) false)))
+)
+```

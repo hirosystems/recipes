@@ -16,6 +16,11 @@ files:
 ---
 
 ```clarity
+;; !mark(1:3)
+(define-read-only (filter-item (l (list 100 uint)) (remove uint))
+  (get newList (fold remove-value l { compareTo: remove, newList: (list) }))
+)
+
 (define-private (remove-value (listValue uint) (trackerTuple { compareTo: uint, newList: (list 100 uint) }))
   (merge trackerTuple {newList:
     (if (is-eq listValue (get compareTo trackerTuple))
@@ -23,10 +28,5 @@ files:
       (unwrap-panic (as-max-len? (append (get newList trackerTuple) listValue) u100))
     )
   })
-)
-
-!mark(1:3)
-(define-read-only (filter-item (l (list 100 uint)) (remove uint))
-  (get newList (fold remove-value l { compareTo: remove, newList: (list) }))
 )
 ```
