@@ -18,15 +18,8 @@ files:
 ---
 
 ```clarity
-!hover mainnet
-(define-constant MAINNET_VERSION_BYTES 0x16)
-!hover mainnet
-(define-constant ADDRESS 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM)
-
-!hover testnet
-(define-constant TESTNET_VERSION_BYTES 0x1a)
-!hover testnet
-(define-constant ADDRESS 'SP1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRCBGD7R)
+(define-constant VERSION_BYTES 0x1a) ;; On mainnet, use 0x16
+(define-constant ADDRESS 'SP1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRCBGD7R) ;; On mainnet, use 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
 
 (define-read-only (get-hash-bytes)
   (get hash-bytes (unwrap-err-panic (principal-destruct? ADDRESS)))
