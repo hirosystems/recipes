@@ -18,25 +18,41 @@ files:
 ```clarity
 ;; !hover has-duplicate-chars?
 (define-read-only (has-duplicate-chars? (input (string-ascii 200)))
+  ;; !hover has-duplicate-chars?
   (is-none (fold dup input (slice? (concat input "|END") u1  (+ (len input) u4))))
+;; !hover has-duplicate-chars?
 )
 
+;; !hover has-duplicate-chars?
 (define-private (dup (ch (string-ascii 1)) (out (optional (string-ascii 204))))
+  ;; !hover has-duplicate-chars?
   (match out out_some 
+    ;; !hover has-duplicate-chars?
     (match (index-of? (unwrap-panic (slice? out_some u0 (- (len out_some) u4))) ch ) found none (slice? out_some u1  (len out_some)))
+    ;; !hover has-duplicate-chars?
     out
+  ;; !hover has-duplicate-chars?
   )
+;; !hover has-duplicate-chars?
 )
 
 ;; !hover has-duplicates?
 (define-read-only (has-duplicates? (input (list 10 uint)))
+  ;; !hover has-duplicates?
   (or 
+    ;; !hover has-duplicates?
     (is-dup input u0) (is-dup input u1) (is-dup input u2) (is-dup input u3) (is-dup input u4) 
+    ;; !hover has-duplicates?
     (is-dup input u5) (is-dup input u6) (is-dup input u7) (is-dup input u8) (is-dup input u9)
+  ;; !hover has-duplicates?
   )
+;; !hover has-duplicates? 
 )
 
-(define-read-only (is-dup (input (list 10 uint)) (i uint))
+;; !hover has-duplicates?
+(define-private (is-dup (input (list 10 uint)) (i uint))
+  ;; !hover has-duplicates?
   (is-some (index-of? (unwrap! (slice? input (+ i u1) (len input)) false) (unwrap! (element-at? input i) false)))
+;; !hover has-duplicates?
 )
 ```
