@@ -23,7 +23,6 @@ files:
 ;; !hover has-duplicate-chars?
 )
 
-;; !hover has-duplicate-chars?
 (define-private (dup (ch (string-ascii 1)) (out (optional (string-ascii 204))))
   (match out out_some 
     (match (index-of? (unwrap-panic (slice? out_some u0 (- (len out_some) u4))) ch ) found none (slice? out_some u1  (len out_some)))
