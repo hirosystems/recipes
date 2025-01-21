@@ -1,0 +1,101 @@
+---
+id: convert-string-to-principal
+title: Convert string to principal
+description: How to convert a string address to a principal type.
+date: 2025.01.21
+categories:
+  - clarity
+tags:
+  - principals
+  - strings
+dependencies: []
+files:
+  - name: convert-string-to-principal.clar
+    path: contracts/convert-string-to-principal.clar
+    type: clarity
+---
+
+```clarity
+(define-constant ALL_HEX 0x000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F202122232425262728292A2B2C2D2E2F303132333435363738393A3B3C3D3E3F404142434445464748494A4B4C4D4E4F505152535455565758595A5B5C5D5E5F606162636465666768696A6B6C6D6E6F707172737475767778797A7B7C7D7E7F808182838485868788898A8B8C8D8E8F909192939495969798999A9B9C9D9E9FA0A1A2A3A4A5A6A7A8A9AAABACADAEAFB0B1B2B3B4B5B6B7B8B9BABBBCBDBEBFC0C1C2C3C4C5C6C7C8C9CACBCCCDCECFD0D1D2D3D4D5D6D7D8D9DADBDCDDDEDFE0E1E2E3E4E5E6E7E8E9EAEBECEDEEEFF0F1F2F3F4F5F6F7F8F9FAFBFCFDFEFF)
+(define-constant C32_CHARS "0123456789ABCDEFGHJKMNPQRSTVWXYZ")
+
+(define-constant ERR_100 (throw u100)) ;; invalid input data (invalid character)
+(define-constant ERR_101 (throw u101)) ;; data too short (invalid address length)
+(define-constant ERR_102 (throw u102)) ;; data too long (invalid address length)
+(define-constant ERR_103 (throw u103)) ;; invalid final lenght (too short or too long)
+(define-constant ERR_104 (throw u104)) ;; invalid contract name lenght
+(define-constant ERR_105 (throw u105)) ;; invalid checksum
+
+
+(define-read-only (string-to-principal? (input (string-ascii 82)))
+  (let 
+    (
+      (dot (default-to (len input) (index-of? input ".")))
+      (addr (unwrap! (slice? input u1 dot) ERR_101))
+      (addressLen (len addr))
+      ;; check if address is not too long
+      (isValidLen (asserts! (<= addressLen u40) ERR_102))
+      (addr_c32 (map unwrap-panic-uint (filter is-some-uint (map c32-index addr))))
+      ;; check if all chars belongs to CR32
+      (isValidChars (asserts! (is-eq addressLen (len addr_c32)) ERR_100)) 
+      (version (unwrap-panic (element-at? addr_c32 u0))) ;; can't fail
+      (addr_data (unwrap-panic (as-max-len? (unwrap! (slice? addr_c32 u1 addressLen) ERR_101) u39)))
+      (decoded (fold decode (reverse-list-uint addr_data) (list u0 u0)))
+      (finalDecoded (concat (if (< u0 (unwrap-panic (element-at? decoded u1))) (list (unwrap-panic (element-at? decoded u0))) (list)) (unwrap! (slice? decoded u2 (len decoded)) ERR_101)))
+      (finalDecodedLen (len finalDecoded))
+      (final (concat
+        ;; leading zeros from input
+        (default-to (list) (slice? addr_data u0 (default-to u0 (index-of? (map is-zero addr_data) false)))) 
+        ;; finalDecoded without leading zeros
+        (default-to (list) (slice? finalDecoded (default-to finalDecodedLen (index-of? (map is-zero finalDecoded) false)) finalDecodedLen))
+      ))
+      (finalLen (len final))
+      ;; check if final length is not too short or too long
+      (isFinalLenValid (asserts! (and (<= finalLen u24) (<= u5 finalLen)) ERR_103)) 
+      (data (fold to-hex final 0x))
+      (dataBytes (unwrap-panic (as-max-len? (unwrap-panic (slice? data u0 (- finalLen u4))) u20)))
+      (checksum (unwrap-panic (slice? data (- finalLen u4) finalLen)))
+      (verByte (unwrap-panic (element-at? ALL_HEX version)))
+    )
+    (asserts! (is-eq checksum (unwrap-panic (slice? (sha256 (sha256 (concat verByte dataBytes))) u0 u4))) ERR_105)
+    (match (slice? input (+ u1 dot) (len input)) contract
+      (principal-construct? verByte dataBytes (unwrap! (as-max-len? contract u40) ERR_104))
+      (principal-construct? verByte dataBytes)
+    )
+  )
+)
+
+;; ((39 * 5) /8) = 24
+;; 24 + 2 extra for carry and carryBits
+(define-read-only (decode (i uint) (out (list 26 uint)))
+  (let (
+    (cb (unwrap-panic (element-at? out u1)))
+    (carry (+ (unwrap-panic (element-at? out u0)) (bit-shift-left i cb)))
+    (carryBits (+ u5 cb))
+  ) 
+    (unwrap-panic (as-max-len? (concat
+      (if (>= carryBits u8)
+        (list (bit-shift-right carry u8) (- carryBits u8) (bit-and carry (- (bit-shift-left u1 u8) u1)))
+        (list carry carryBits)
+      )
+      (default-to (list) (slice? out u2 (len out)))) u26))
+  )
+)
+
+;; helpers
+(define-read-only (throw (c uint)) (err { error_code: c, value: none }))
+(define-read-only (is-zero (i uint)) (<= i u0))
+(define-read-only (is-some-uint (i (optional uint))) (is-some i))
+(define-read-only (unwrap-panic-uint (i (optional uint))) (unwrap-panic i))
+(define-read-only (c32-index (c (string-ascii 1))) (index-of? C32_CHARS c))
+(define-read-only (to-hex (i uint) (out (buff 24))) (unwrap-panic (as-max-len? (concat out (unwrap-panic (element-at? ALL_HEX i))) u24)))
+(define-read-only (reverse-list-uint (l (list 39 uint)))
+  (map unwrap-panic-uint (filter is-some-uint (list
+      (element-at? l u38) (element-at? l u37) (element-at l u36) (element-at? l u35) (element-at? l u34) (element-at? l u33) (element-at? l u32) (element-at? l u31) (element-at? l u30) 
+      (element-at? l u29) (element-at? l u28) (element-at? l u27) (element-at l u26) (element-at? l u25) (element-at? l u24) (element-at? l u23) (element-at? l u22) (element-at? l u21) (element-at? l u20)
+      (element-at? l u19) (element-at? l u18) (element-at? l u17) (element-at l u16) (element-at? l u15) (element-at? l u14) (element-at? l u13) (element-at? l u12) (element-at? l u11) (element-at? l u10)
+      (element-at? l u09) (element-at? l u08) (element-at? l u07) (element-at l u06) (element-at? l u05) (element-at? l u04) (element-at? l u03) (element-at? l u02) (element-at? l u01) (element-at? l u00)
+    )
+  ))
+)
+```
