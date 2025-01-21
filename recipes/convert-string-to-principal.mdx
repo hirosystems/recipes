@@ -35,17 +35,17 @@ files:
       (addressLen (len addr))
       ;; check if address is not too long
       (isValidLen (asserts! (<= addressLen u40) ERR_102))
-      (addr_c32 (map unwrap-panic-uint (filter is-some-uint (map c32-index addr))))
+      (addressc32 (map unwrap-panic-uint (filter is-some-uint (map c32-index addr))))
       ;; check if all chars belongs to CR32
-      (isValidChars (asserts! (is-eq addressLen (len addr_c32)) ERR_100)) 
-      (version (unwrap-panic (element-at? addr_c32 u0))) ;; can't fail
-      (addr_data (unwrap-panic (as-max-len? (unwrap! (slice? addr_c32 u1 addressLen) ERR_101) u39)))
-      (decoded (fold decode (reverse-list-uint addr_data) (list u0 u0)))
+      (isValidChars (asserts! (is-eq addressLen (len addressc32)) ERR_100)) 
+      (version (unwrap-panic (element-at? addressc32 u0))) ;; can't fail
+      (addressData (unwrap-panic (as-max-len? (unwrap! (slice? addressc32 u1 addressLen) ERR_101) u39)))
+      (decoded (fold decode (reverse-list-uint addressData) (list u0 u0)))
       (finalDecoded (concat (if (< u0 (unwrap-panic (element-at? decoded u1))) (list (unwrap-panic (element-at? decoded u0))) (list)) (unwrap! (slice? decoded u2 (len decoded)) ERR_101)))
       (finalDecodedLen (len finalDecoded))
       (final (concat
         ;; leading zeros from input
-        (default-to (list) (slice? addr_data u0 (default-to u0 (index-of? (map is-zero addr_data) false)))) 
+        (default-to (list) (slice? addressData u0 (default-to u0 (index-of? (map is-zero addressData) false)))) 
         ;; finalDecoded without leading zeros
         (default-to (list) (slice? finalDecoded (default-to finalDecodedLen (index-of? (map is-zero finalDecoded) false)) finalDecodedLen))
       ))

@@ -1,0 +1,34 @@
+---
+id: derive-principal-addresses-between-networks
+title: Derive principal addresses between networks
+description: How to derive a principal address between networks.
+date: 2025.01.21
+categories:
+  - clarity
+tags:
+  - conversion
+  - addresses
+  - mainnet
+  - testnet
+dependencies: []
+files:
+  - name: derive-principal-addresses-between-networks.clar
+    path: contracts/derive-principal-addresses-between-networks.clar
+    type: clarity
+---
+
+```clarity
+!hover mainnet
+(define-constant MAINNET_VERSION_BYTES 0x16)
+!hover mainnet
+(define-constant ADDRESS 'ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM)
+
+!hover testnet
+(define-constant TESTNET_VERSION_BYTES 0x1a)
+!hover testnet
+(define-constant ADDRESS 'SP1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRCBGD7R)
+
+(define-read-only (get-hash-bytes)
+  (get hash-bytes (unwrap-err-panic (principal-destruct? ADDRESS)))
+)
+```
