@@ -1,0 +1,32 @@
+---
+id: filter-items-from-a-list
+title: Filter items from a list
+description: How to filter items from a list.
+date: 2025.01.16
+categories:
+  - clarity
+tags:
+  - filter
+  - lists
+dependencies: []
+files:
+  - name: filter-items-from-a-list.ts
+    path: contracts/filter-items-from-a-list.ts
+    type: clarity
+---
+
+```clarity
+(define-private (remove-value (listValue uint) (trackerTuple { compareTo: uint, newList: (list 100 uint) }))
+  (merge trackerTuple {newList:
+    (if (is-eq listValue (get compareTo trackerTuple))
+      (get newList trackerTuple)
+      (unwrap-panic (as-max-len? (append (get newList trackerTuple) listValue) u100))
+    )
+  })
+)
+
+!mark(1:3)
+(define-read-only (filter-item (l (list 100 uint)) (remove uint))
+  (get newList (fold remove-value l { compareTo: remove, newList: (list) }))
+)
+```
