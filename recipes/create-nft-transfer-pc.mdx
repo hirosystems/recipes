@@ -1,0 +1,28 @@
+---
+id: create-nft-transfer-pc
+title: Create a Post-Condition for an NFT transfer
+description: Create a Post-Condition for an Non-Fungible Token (NFT) transfer using the `Pc` helper class.
+date: 2025.01.20
+categories:
+  - stacks.js
+tags:
+  - post-conditions
+  - transfers
+  - nft
+dependencies:
+  "@stacks/transactions": "^7.0.2"
+files:
+  - name: create-nft-transfer-pc.ts
+    path: lib/create-nft-transfer-pc.ts
+    type: typescript
+---
+
+```typescript
+import { Pc, Cl } from '@stacks/transactions';
+
+const postCondition = Pc.principal("<owner-principal-address>")
+  // !hover will-not-send-asset
+  .willNotSendAsset()
+  .nft('<nft-contract-address>.token-nft::token', Cl.uint(12));
+```
+
