@@ -45,25 +45,4 @@ const txOptions = {
 
 const transaction = await makeContractCall(txOptions);
 const serializedTx = bytesToHex(transaction.serializeBytes());
-const deserializedTx = deserializeTransaction(serializedTx);
-
-const sponsorKey = "<sponsor-private-key>";
-const fee = 1000n;
-
-const sponsorOptions = {
-  transaction: deserializedTx,
-  sponsorPrivateKey: sponsorKey,
-  fee,
-  sponsorNonce: 0,
-  network: STACKS_TESTNET,
-};
-
-const sponsoredTx = await sponsorTransaction(sponsorOptions);
-console.log({ sponsoredTx });
-
-const broadcastResponse = await broadcastTransaction({
-  transaction: sponsoredTx,
-});
-const txId = broadcastResponse.txid;
-console.log({ txId });
 ```
