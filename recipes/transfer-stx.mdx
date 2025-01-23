@@ -30,11 +30,11 @@ import {
 
 const sendingPrincipal = "<your-sender-address>";
 const recipientPrincipal = "<recipients-address>";
-// !hover Pc
+// !hover post-conditions
 const postConditions = Pc.principal(sendingPrincipal)
-  // !hover Pc
+  // !hover post-conditions
   .willSendEq(1000)
-  // !hover Pc
+  // !hover post-conditions
   .ustx();
 
 const txOptions = {
@@ -43,8 +43,8 @@ const txOptions = {
   senderKey: "<your-private-key>",
   network: STACKS_TESTNET,
   memo: "test memo", // optional
+  // !hover post-conditions
   postConditions: [postConditions],
-  // !hover deny
   postConditionMode: PostConditionMode.Deny,
   anchorMode: AnchorMode.Any,
 };
