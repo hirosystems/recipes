@@ -44,5 +44,6 @@ const txOptions = {
 };
 
 const transaction = await makeContractCall(txOptions);
+// !hover serialized-tx
 const serializedTx = bytesToHex(transaction.serializeBytes());
 ```
