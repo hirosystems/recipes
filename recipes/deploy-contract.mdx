@@ -1,0 +1,35 @@
+---
+id: deploy-contract
+title: Deploy a contract using Stacks.js
+description: Deploy a contract using Stacks.js.
+date: 2025.01.14
+categories:
+  - stacks.js
+tags:
+  - contracts
+  - deployments
+dependencies:
+  "@stacks/network": "^7.0.2"
+  "@stacks/transactions": "^7.0.2"
+files:
+  - name: deploy-contract.ts
+    path: lib/deploy-contract.ts
+    type: typescript
+---
+
+```typescript
+import { STACKS_TESTNET } from "@stacks/network";
+import { makeContractDeploy, broadcastTransaction } from "@stacks/transactions";
+
+const txOptions = {
+  contractName: "<contract-name>",
+  codeBody: "<your-contract-code>",
+  senderKey: "<your-private-key>",
+  network: STACKS_TESTNET,
+};
+
+const transaction = await makeContractDeploy(txOptions);
+
+const broadcastResponse = await broadcastTransaction({transaction});
+const txId = broadcastResponse.txid;
+```

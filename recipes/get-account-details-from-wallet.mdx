@@ -1,0 +1,35 @@
+---
+id: get-account-details-from-wallet
+title: Get account details from a wallet
+description: How to get account details like address and private key from a wallet.
+date: 2025.01.13
+categories:
+  - stacks.js
+tags:
+  - wallets
+  - addresses
+  - stx
+  - private-keys
+dependencies:
+  "@stacks/network": "^7.0.2"
+  "@stacks/wallet-sdk": "^7.0.2"
+files:
+  - name: get-account-details-from-wallet.ts
+    path: lib/get-account-details-from-wallet.ts
+    type: typescript
+---
+
+```typescript
+import { STACKS_TESTNET } from "@stacks/network";
+import { generateWallet, getStxAddress } from "@stacks/wallet-sdk";
+
+let wallet = await generateWallet({
+  secretKey: "<your-seed-phrase-or-private-key>",
+  password: "secret",
+});
+
+const [account, ..._] = wallet.accounts;
+
+const address = getStxAddress({ account, network: STACKS_TESTNET });
+const privateKey = account.stxPrivateKey;
+```

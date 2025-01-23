@@ -1,0 +1,59 @@
+---
+id: transfer-stx
+title: Transfer STX using Stacks.js
+description: Transfer STX using Stacks.js.
+date: 2025.01.15
+categories:
+  - stacks.js
+tags:
+  - stx
+  - stacks
+  - transfers
+dependencies:
+  "@stacks/network": "^7.0.2"
+  "@stacks/transactions": "^7.0.2"
+files:
+  - name: stx-transfer.ts
+    path: lib/stx-transfer.ts
+    type: typescript
+---
+
+```typescript
+import { STACKS_TESTNET } from "@stacks/network";
+import {
+  AnchorMode,
+  broadcastTransaction,
+  makeSTXTokenTransfer,
+  Pc,
+  PostConditionMode,
+} from "@stacks/transactions";
+
+const sendingPrincipal = "<your-sender-address>";
+const recipientPrincipal = "<recipients-address>";
+// !hover Pc
+const postConditions = Pc.principal(sendingPrincipal)
+  // !hover Pc
+  .willSendEq(1000)
+  // !hover Pc
+  .ustx();
+
+const txOptions = {
+  recipient: recipientPrincipal,
+  amount: 1000,
+  senderKey: "<your-private-key>",
+  network: STACKS_TESTNET,
+  memo: "test memo", // optional
+  postConditions: [postConditions],
+  // !hover deny
+  postConditionMode: PostConditionMode.Deny,
+  anchorMode: AnchorMode.Any,
+};
+
+
+
+const transaction = await makeSTXTokenTransfer(txOptions);
+const broadcastResponse = await broadcastTransaction({
+  transaction,
+});
+const txId = broadcastResponse.txid;
+```

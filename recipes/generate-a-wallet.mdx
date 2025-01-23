@@ -1,0 +1,32 @@
+---
+id: generate-a-wallet
+title: Generate a wallet from a seed phrase or private key
+description: How to generate a wallet from a seed phrase or private key.
+date: 2025.01.12
+categories:
+  - stacks.js
+tags:
+  - wallets
+  - seed-phrases
+  - secret-keys
+dependencies:
+  "@stacks/wallet-sdk": "^7.0.2"
+files:
+  - name: generate-wallet.ts
+    path: lib/generate-wallet.ts
+    type: typescript
+---
+
+```typescript
+import { generateWallet, generateNewAccount } from '@stacks/wallet-sdk';
+
+let wallet = generateWallet({
+  secretKey: "<your-seed-phrase-or-private-key>",
+  password: "secret",
+});
+
+// !hover generateNewAccount
+wallet = generateNewAccount(wallet);
+
+const { account1, account2 } = wallet;
+```
