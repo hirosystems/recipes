@@ -1,0 +1,28 @@
+---
+id: create-sha256-hash-stacks-js
+title: Create a hash using stacks.js
+description: Create the same SHA-256 hash from buffer data using stacks.js that can be created with Clarity.
+date: 2025.02.25
+categories:
+  - stacks.js
+tags:
+  - hashes
+ dependencies:
+  "@noble/hashes": "^1.7.1",
+  "@stacks/common": "^7.0.2"
+
+files:
+  - name: create-sha256-hash.ts
+    path: lib/create-sha256-hash.ts
+    type: typescript
+---
+
+```typescript
+import { sha256 } from "@noble/hashes/sha256";
+import { bytesToHex, hexToBytes } from "@stacks/common";
+import { bufferCV, serializeCV } from "@stacks/transactions";
+
+function createSha256(hexData) {
+  return bytesToHex(sha256(serializeCV(bufferCV(hexToBytes(hexData)))));
+}
+```

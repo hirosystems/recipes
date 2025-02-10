@@ -1,0 +1,22 @@
+---
+id: create-sha256-hash-clarity
+title: Create a hash using Clarity
+description: Create the same SHA-256 hash from buffer data using Clarity that can be created with stacks.js.
+date: 2025.02.25
+categories:
+  - clarity
+tags:
+  - hashes
+dependencies: []
+files:
+  - name: create-sha256-hash.clar
+    path: contracts/create-sha256-hash.clar
+    type: clarity
+external_url: https://play.hiro.so/?epoch=3.1&snippet=KGRlZmluZS1yZWFkLW9ubHkgKGdlbmVyYXRlLWJ1cm4tYWRkcmVzcyAoZW50cm9weVN0cmluZyAoc3RyaW5nLWFzY2lpIDE1KSkpCiAgKGxldAogICAgKAogICAgICAoaGFzaCAoaGFzaDE2MCAodW53cmFwLXBhbmljICh0by1jb25zZW5zdXMtYnVmZj8gZW50cm9weVN0cmluZykpKSkKICAgICkKICAgIChwcmluY2lwYWwtY29uc3RydWN0PyAoaWYgaXMtaW4tbWFpbm5ldCAweDE2IDB4MWEpIGhhc2gpCiAgKQop
+---
+
+```clarity
+(define-read-only (create-sha256-hash (data (buff 4096)))
+  (sha256 (unwrap-panic (to-consensus-buff? data)))
+)
+```
